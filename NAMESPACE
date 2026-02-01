@@ -1,0 +1,7 @@
+export(adsasi_0d)
+export(adsasi_1d)
+importFrom(abind,abind)
+importFrom("grDevices", "dev.off", "png", "rgb")
+importFrom("graphics", "axis", "lines", "par", "points", "polygon")
+importFrom("stats", "dnorm", "median", "optim", "pnorm", "qnorm",
+           "quantile", "rexp", "rmultinom", "rnorm", "runif")
