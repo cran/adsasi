@@ -28,7 +28,7 @@ adsasi_0d(
 
 \item{impNN}{(single number, or infinity) Sample size that is considered impossible (either computationnally, or logistically). The simulator will exit if, after 500+ simulations, it looks like the best value is above this. In practice, is mostly useful to avoid expensive computations in situations where \code{simfun} is not written well or is prohibitively long to compute for large sample sizes.}
 
-\item{capNN}{(single number, or infinity) Maximum sample size that will be simulated. Also mostly useful to avoid expensive computations. Values between \code{capNN} and \code{impNN} will be extrapolations of unclear validity, so if it looks like the answer is really above \code{capNN}, try running the wrapper again with a higher \code{capNN}.}
+\item{capNN}{(single number, or infinity) Maximum sample size that will be simulated. Also mostly useful to avoid expensive computations. Values between \code{capNN} and \code{impNN} will be extrapolations of unclear validity, so if it looks like the answer is really above \code{capNN}, try running the wrapper again with a higher \code{capNN}. Initiation will also be done between 10 and \code{capNN/2} patients, so absurdly high values will cause a slow start.}
 
 \item{initiation}{(boolean, or numeric matrix) Either a boolean indicating whether or not to keep the first 150 simulations for the relationship inference (those tend to be far from \code{tar_power}), or a matrix with simulation results from a previous run which the user wants enrich with more simulations (formatted exactly as produced by \code{adsasi_0d} with the same \code{simfun}). See \code{keepsims} and Note below for how to store and retrieve this data.}
 

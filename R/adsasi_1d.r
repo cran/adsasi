@@ -1,9 +1,9 @@
 adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),optilog=FALSE,optiround=FALSE,nsims=5000, verbose=FALSE, impNN=Inf, capNN=2000, initiation = TRUE, savegraphs = FALSE, keepsims = FALSE, n_slope_coefs=3,n_size_coefs=5) 
  {
-    # Initializing some variables
-  par_bak <- par()[c("mfrow","cex","cex.lab","cex.axis")] # graphical parameter backup
-  tar_NN = rep(round(exp(seq(log(10),log(300),length.out=10))),10)      # tar_NN will be a vector of target sample sizes that will be simulated iteratively
-  tar_optival = rep(seq(-1,1,length.out=12)[c(-1,-12)],rep(10,10)) # tar_optival is the vector of optimization parameters to be simulated along with tar_NN. The algorithm searches the -1 to 1 space and converts that into the window provided by the user
+  # Initializing some variables
+  par_bak <- par()[c("mfrow","cex","cex.lab","cex.axis")]                   # graphical parameter backup
+  tar_NN = rep(round(exp(seq(log(10),log(capNN/2),length.out=10))),10)      # tar_NN will be a vector of target sample sizes that will be simulated iteratively
+  tar_optival = rep(seq(-1,1,length.out=12)[c(-1,-12)],rep(10,10))          # tar_optival is the vector of optimization parameters to be simulated along with tar_NN. The algorithm searches the -1 to 1 space and converts that into the window provided by the user
   latest_coefs_size = c(10,rep(0,n_size_coefs-1))                           # latest estimates, here this means initial guess of sample size is 10^2=100 for any optival (only first term is nonzero)   
   latest_coefs_slope = c(-10,rep(0,n_slope_coefs-1))                        # latest slopes, here this means slope of exp(-10)=5e-5 for any optival (essentially flat) ; the optimizer can incline a flat slope but has problems flattening a too-steep one  
   trials = cbind(matrix(c(1,sqrt(1000000),0,1),nrow=2)[rep(1:2,20),],seq(-1,1,length.out=42)[c(-1,-42)]) # assuming a 1M sample size yields success whatever the optimization parameter value
@@ -93,10 +93,10 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
     }
     # a bit of code to test the Hessian # output = cbind(xx1,xx2) ; for(ii in names(xx1)) { yy = ii ; xx2=xx1 ; xx2[yy]=xx1[yy]+.00000001 ; output[yy,1]=((dloglik(xx2)-dloglik(xx1))/(xx2[yy]-xx1[yy]))[7] ; output[yy,2]=ddloglik(xx1)[7,yy]} ; print(output) ; print(output[,1]/output[,2]) # repeat with instead of 7 to check another row
     
-  optival_rescale = function(xx) # rescale optimization variable values in xx to the range provided by the user (to be passed to simfun and/or graphs)
+  optival_rescale = function(xx)        # rescale optimization variable values in xx to the range provided by the user (to be passed to simfun and/or graphs)
    {
     if(optilog) mm = log(optiwin) else mm = optiwin # min and max
-    yy = mm[1]+(mm[2]-mm[1])*(xx+1)/2 # (xx+1)/2 scales (-1 to +1) to (0 to 1)
+    yy = mm[1]+(mm[2]-mm[1])*(xx+1)/2   # (xx+1)/2 scales (-1 to +1) to (0 to 1)
     if(optilog) yy = exp(yy) 
     if(optiround) yy = round(yy)
     unname(yy)
@@ -106,7 +106,7 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
   min_optival = NA # best values to date
   # Here is the main loop
   while(  nrow(trials)<nsims                                         # exit if enough simulations made
-        & !(nrow(trials)>500 & !is.na(min_NN) & min_NN>impNN)  # exit if after 500+ simulated trials the best size seems to be >impNN
+        & !(nrow(trials)>500 & !is.na(min_NN) & min_NN>impNN)        # exit if after 500+ simulated trials the best size seems to be >impNN
         & !(!is.na(min_NN) & min_NN>1e5 & mean(trials[,"srsampsize"]>sqrt(capNN*.8))>0.1))  # exit in any case if answer seems >100k patients and the simulator is hitting capNN (likely a user error leading to lots of wasted compute)
    {
     if(nrow(trials)>200&&is.null(dim(initiation))&&initiation==FALSE) { trials=trials[-(1:150),] ; initiation = TRUE } # kick out first iterations, deactivate the logical switch
@@ -119,7 +119,7 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
     names(args)[2] = optivar         # giving the right name to the argument that is the target of the optimization
     args = lapply(1:length(tar_NN),function(xx){yy=args;yy[[1]]=tar_NN[xx];yy[[2]]=optival_rescale(tar_optival[xx]);yy}) # this is a list of lists, each list has the arguments to be passed to simfun
     
-    simulations = unlist(lapply(args,function(xx){do.call(simfun,xx)})) # running the simulations, normally getting a vector of logicals. Note that this calls what you have defined to be simfun when calling adsasi2 and passes whatever arguments you have specified, except for the optivar parameter which is chosen iteratively by adsasi2 (values in tar_optival) and sample sizes (values in tar_NN)
+    simulations = unlist(lapply(args,function(xx){do.call(simfun,xx)})) # running the simulations, normally getting a vector of logicals. Note that this calls what you have defined to be simfun when calling adsasi_1d and passes whatever arguments you have specified, except for the optivar parameter which is chosen iteratively by adsasi_1d (values in tar_optival) and sample sizes (values in tar_NN)
     trials = rbind(trials,cbind(srsampsize=sqrt(tar_NN),simulations,optival=tar_optival))  # collating the latest simulations with the ones before
     
     # # # # # # # # # # # # # # # # # # # # 
@@ -128,10 +128,10 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
     # # # # # # # # # # # # # # # # # # # # 
     initial_vector = c(c(-5,rep(0,n_slope_coefs-1)),latest_coefs_size)
     names(initial_vector) = c(paste0("coefslope",0:(n_slope_coefs-1)),paste0("coefsize",0:(n_size_coefs-1)))
-    initial_value = loglik(initial_vector)    # log-likelihood for the initial values passed to the minimizer 
+    initial_value = loglik(initial_vector)                              # log-likelihood for the initial values passed to the minimizer 
     if(initial_value!=Inf&initial_value!=-Inf&!is.na(initial_value))    # if the initial value is defined, the minimizer can get to work
      {
-      try(mle <- optim(initial_vector, fn=loglik, gr=dloglik, method="BFGS", hessian = FALSE, control=list(fnscale=-1)), silent = TRUE) # using the default optimizer in R, a bit slow but the main compute use is for within-simulation inference anyway
+      try(mle <- optim(initial_vector, fn=loglik, gr=dloglik, method="BFGS", hessian = FALSE, control=list(fnscale=-1)), silent = TRUE) # using the default optimizer in R
                                                                                                             # control=list(fnscale=-1)) to maximize instead of minimizing
                                                                                                             # here we use try() in case it fails, gets stuck etc. in which case we keep previous values
       latest_coefs_slope = mle$par[paste0("coefslope",0:(n_slope_coefs-1))]
@@ -141,10 +141,10 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
       slope_by_optival = apply(t(latest_coefs_slope)[rep(1,length(optival_graph)),]*t(t(optival_graph))[,rep(1,n_slope_coefs)]^t(0:(n_slope_coefs-1))[rep(1,length(optival_graph)),],1,sum)^2
       
       covmat = diag(length(mle$par))
-      try(covmat <- solve(-ddloglik(c(latest_coefs_slope,latest_coefs_size))), silent=TRUE)             # using the exact Hessian to get a Rao Cramer covariance matrix, will fail from time to time, mostly when not invertible
+      try(covmat <- solve(-ddloglik(c(latest_coefs_slope,latest_coefs_size))), silent=TRUE)                 # using the exact Hessian to get a Rao Cramer covariance matrix, will fail from time to time, mostly when not invertible
       
       # Computing variance of the size polynomial for different values of optival (to get a confidence interval along all values)
-      exponent_matrix = t(c(0:(n_slope_coefs-1),0:(n_size_coefs-1)))[rep(1,n_slope_coefs+n_size_coefs),]+t(t(c(0:(n_slope_coefs-1),0:(n_size_coefs-1)))[rep(1,n_slope_coefs+n_size_coefs),]) # along the two dimensions of the Hessian, those are the exponents of the shifting term
+      exponent_matrix = t(c(0:(n_slope_coefs-1),0:(n_size_coefs-1)))[rep(1,n_slope_coefs+n_size_coefs),]+t(t(c(0:(n_slope_coefs-1),0:(n_size_coefs-1)))[rep(1,n_slope_coefs+n_size_coefs),]) # along the two dimensions of the Hessian, those are the exponents of the shifting term (powers of v for the covariance of the polynomial)
       
       covar_coefs = array(optival_graph,dim=c(length(optival_graph),1,1))[,rep(1,n_slope_coefs+n_size_coefs),rep(1,n_slope_coefs+n_size_coefs)]^array(exponent_matrix,dim=c(1,nrow(exponent_matrix),ncol(exponent_matrix)))[rep(1,length(optival_graph)),,]
       covar_coefs = abind::abind(covar_coefs,NULL)
@@ -157,7 +157,7 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
       size_confint_lower_by_optival = (size_polynomial_estimate_by_optival-1.96*size_se_by_optival)^2
       size_confint_higher_by_optival = (size_polynomial_estimate_by_optival+1.96*size_se_by_optival)^2
       size_natural_estimate_by_optival = size_polynomial_estimate_by_optival^2
-      min_NN = ceiling(min(size_natural_estimate_by_optival)) # going with an empirical minimum for now
+      min_NN = ceiling(min(size_natural_estimate_by_optival))                     # going with an empirical minimum since we have 200 points
       min_optival = optival_graph[which.min(size_natural_estimate_by_optival)[1]] # best optival
 
       slope_polynomial_variance = abs(apply(covar_array[,1:n_slope_coefs,1:n_slope_coefs],1,sum))
@@ -168,10 +168,10 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
       slope_natural_estimate_by_optival = exp(slope_polynomial_estimate_by_optival)
 
       
-      batch_size = max(50,round(nrow(trials)/10))              # the number of simulations for the new batch is 10% of what's already been done, but at least 50
-      if((nrow(trials)+batch_size)>nsims) batch_size = max(2,nsims-nrow(trials)) # max(2,...) is to avoid bugs so one may rarely get nsims+1 runs at the end, depending on nsims
+      batch_size = max(50,round(nrow(trials)/10))                                  # the number of simulations for the new batch is 10% of what's already been done, but at least 50
+      if((nrow(trials)+batch_size)>nsims) batch_size = max(2,nsims-nrow(trials))   # max(2,...) is to avoid bugs so one may rarely get nsims+1 runs at the end, depending on nsims
       n_per_optival = rmultinom(1,batch_size,1/size_natural_estimate_by_optival^2) # how many trials per optival value (mostly 0 or 1)
-      tar_trials = lapply(1:nrow(n_per_optival),function(xx) # this function will pick new locations to try in the {NN,optival} space. We will favor regions near the lowest sample size (+-1SE) and near the best optival (with minimal sample size stimate), but not too harshly (if case we are currently wrong)
+      tar_trials = lapply(1:nrow(n_per_optival),function(xx)                       # this function will pick new locations to try in the {NN,optival} space. We will favor regions near the lowest sample size (+-1SE) and near the best optival (with minimal sample size stimate), but not too harshly (if case we are currently wrong)
        {
         output = NULL
         if(n_per_optival[xx]>0)
@@ -186,9 +186,9 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
         })
       tar_trials = do.call(rbind,tar_trials)      
       
-      tar_NN = pmin(pmax(4,tar_trials[,1]),round(runif(nrow(tar_trials),capNN*0.5,capNN)))              # applying limits : minimum N=4, maximum=0.5µcapNN to capNN, if hard cap gradient is not estimated properly
+      tar_NN = pmin(pmax(4,tar_trials[,1]),round(runif(nrow(tar_trials),capNN*0.9,capNN)))  # applying limits : minimum N=4, maximum=0.9*capNN to capNN, if hard cap gradient is not estimated properly
       tar_optival = tar_trials[,2]
-      } else {                                                 # if optimizer not launchable, keep the same estimates + some noise, keep target trials (N & optival)
+      } else {                                                                              # if optimizer not launchable, keep the same estimates + some noise, keep target trials (N & optival)
               latest_coefs_size = latest_coefs_size+rnorm(length(latest_coefs_size))
               latest_coefs_slope = latest_coefs_slope+rnorm(length(latest_coefs_slope))
               warning(paste(sep="","Adsasi wrapper log-likelihood fit fail after ",nrow(trials)," simulations."))  # returning a warning, this is usually bad if more than once/twice per run
@@ -201,7 +201,7 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
     # # # # # # # # # # # # # # # # # # 
     # Plotting
     # # # # # # # # # # # # # # # # # # 
-    if(savegraphs!=FALSE) { batch=batch+1 ; pngname = paste(sep="","adsasi",gsub(":","-",as.character(Sys.time()),fixed=TRUE)," iteration ",paste(rep(0,3-nchar(batch)),collapse=""),batch,".png") ; if(is.character(savegraphs)){pngname=gsub("adsasi",savegraphs,pngname)} ; png(pngname,width=400*3,height=400) } # opening a device to save graphs
+    if(savegraphs!=FALSE) { batch=batch+1 ; pngname = paste(sep="","adsasi ",gsub(":","-",as.character(Sys.time()),fixed=TRUE)," iteration ",paste(rep(0,3-nchar(batch)),collapse=""),batch,".png") ; if(is.character(savegraphs)){pngname=gsub("adsasi",savegraphs,pngname)} ; png(pngname,width=400*3,height=400) } # opening a device to save graphs
     #layout(mat = matrix(c(1,1,1,1,2,3),nrow=2), heights = c(1,1), widths = c(1,1,1), respect =TRUE)    
     par(mfrow=c(1,3),cex=1.35,cex.lab=1,cex.axis=1)  # light aesthetic setup, backup was done before the loop
     on.exit(par(par_bak)) # restoring on exit
@@ -224,12 +224,12 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
     plot(
           tar_optival                                  # optival as abscissae (it will be drawn as -1 to +1 so axis will need to be modified)
          ,tar_NN                                       # sample sizes as ordinates 
-         ,xlim=c(-1,+1),xaxt="n"                                # optimization space
+         ,xlim=c(-1,+1),xaxt="n"                       # optimization space
          ,ylim=list(min_NN*c(.9,2),quantile(trials[,"srsampsize"],c(.01,.99))^2)[[1+is.na(min_NN)]]  # same as above
          ,main=c(paste(sep="","Next batch of ",length(tar_optival)," simulations"),"(No next batch to be drawn)")[1+(nrow(trials)>=nsims)] # 
          ,xlab=optivar
          ,ylab="Sample size",type="p"
-         ,col=c("black",NA)[1+(nrow(trials)>=nsims)] # 
+         ,col=c("black",NA)[1+(nrow(trials)>=nsims)] 
          )
     axis(1,at=c(-1,-.5,0,.5,1),labels=optival_rescale(c(-1,-.5,0,.5,1)))
     if(any(ls()=="size_confint_higher_by_optival"))
@@ -241,17 +241,17 @@ adsasi_1d = function(simfun,tar_power=0.9,...,optivar,optiwin=c(min=0,max=1),opt
     if(verbose) { print(trials[nrow(trials)-2:0,]) ; cat("\n") ; print(c("estimate_coefs"=latest_coefs_size, "estimate_slopes"=latest_coefs_slope)) }    # verbose descriptions of how the run is going
 
     if(any(ls()=="slope_confint_higher_by_optival")) { y_window = c(0,quantile(c(slope_natural_estimate_by_optival,slope_confint_lower_by_optival,slope_confint_higher_by_optival),.95)) } else { y_window=c(0,quantile(slope_natural_estimate_by_optival,.95)) }
-    plot(                                                                     # second graph (right panel)
+    plot(                                               # second graph (right panel)
           optival_graph
          ,slope_natural_estimate_by_optival
-         ,xlim=c(-1,+1),xaxt="n"                                # optimization space
-         ,ylim=y_window                         # not showing everything
+         ,xlim=c(-1,+1),xaxt="n"                        # optimization space
+         ,ylim=y_window                                 # not showing everything
          ,main="Slope",xlab=optivar,ylab="Slope"
          ,type="l",lwd=2,col=2)
     axis(1,at=c(-1,-.5,0,.5,1),labels=optival_rescale(c(-1,-.5,0,.5,1)))
     if(any(ls()=="slope_confint_higher_by_optival")) { polygon(c(optival_graph,rev(optival_graph)),c(slope_confint_lower_by_optival,rev(slope_confint_higher_by_optival)),col="#AA555544",border=NA) }
-    if(savegraphs!=FALSE) dev.off()                                                  # closing device and saving image if graphs are to be saved
-    }                                                                         # end of loop
+    if(savegraphs!=FALSE) dev.off()                     # closing device and saving image if graphs are to be saved
+    }                                                   # end of loop
   
   if(nrow(trials)<nsims) warning("Halted for inefficiency.")
   if( min_NN > 4*capNN ) { warning("Optimal sample size seems much larger than user-provided size cap, returning +Inf.") ; min_NN=Inf }  # there is little accuracy when trying to extrapolate that far

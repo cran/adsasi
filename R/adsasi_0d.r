@@ -1,13 +1,13 @@
 adsasi_0d = function(simfun,tar_power=0.9,...,nsims=5000, verbose=FALSE, impNN=Inf, capNN=2000, initiation = TRUE, savegraphs = FALSE, keepsims = FALSE) 
  {
   # Initializing some variables
-  par_bak <- par()[c("mfrow","cex","cex.lab","cex.axis")] # graphical parameter backup
-  tar_NN = round(exp(seq(log(10),log(300),length.out=48)))    # tar_NN will be a vector of target sample sizes that will be simulated iteratively
+  par_bak <- par()[c("mfrow","cex","cex.lab","cex.axis")]    # graphical parameter backup
+  tar_NN = round(exp(seq(log(10),log(capNN/2),length.out=48)))    # tar_NN will be a vector of target sample sizes that will be simulated iteratively
   latest_rootsize = sqrt(30)                                 # this is the square root of the sample size
-  latest_logslope=-1                                            # this is the slope nuisance parameter (how fast power drops if sample size is not adequate)
+  latest_logslope=-1                                         # this is the slope nuisance parameter (how fast power drops if sample size is not adequate)
   trials = matrix(c(1,sqrt(1000000),0,1),nrow=2)             # this is where we store the TRUE/FALSE results of our simulations for each tested sample size, 
                                                              #    we are initiating assuming 1 patient is not enough and 1M patients is enough
-  colnames(trials) = c("srsampsize","signif")            # srsampsize for "Square Root of SAMPle SIZE", signif for whether a discovery is made (even 
+  colnames(trials) = c("srsampsize","signif")                # srsampsize for "Square Root of SAMPle SIZE", signif for whether a discovery is made (even 
                                                              #    if it is not strictly statistical significance for rejection of a well-defined null)
   se = NA                                                    # standard error of the square root of the target sample size using the Hessian matrix
   batch = 0                                                  # just an iteration of simulation batches to keep count
@@ -83,7 +83,7 @@ adsasi_0d = function(simfun,tar_power=0.9,...,nsims=5000, verbose=FALSE, impNN=I
     # # # # # # # # # # # # # # # # # # # # 
     # Fitting model to simulation results
     # # # # # # # # # # # # # # # # # # # # 
-    initial_vector = c(logslope=-5,latest_rootsize) # if logslope is too small or too big the gradient is invisible
+    initial_vector = c(logslope=-5,min(mean(trials[,1]),latest_rootsize,na.rm=T)) # if logslope is too small or too big the gradient is invisible
     names(initial_vector) = c("logslope","rootsize")
     initial_value = loglik(initial_vector)    # log-likelihood for the initial values passed to the minimizer 
     if(initial_value!=Inf&initial_value!=-Inf&!is.na(initial_value))    # if the initial value is defined, the minimizer can get to work
@@ -102,14 +102,14 @@ adsasi_0d = function(simfun,tar_power=0.9,...,nsims=5000, verbose=FALSE, impNN=I
       slope_confint_lower = exp(latest_logslope-1.96*sqrt(covmat[1,1]))
       slope_confint_higher = exp(latest_logslope+1.96*sqrt(covmat[1,1]))
       size_estimate = unname(latest_rootsize^2)
-      se = sqrt(covmat[2,2]) ; if(se==0) { se=.2*latest_rootsize }
+      se = sqrt(covmat[2,2]) ; if(se==0|is.na(se)) { se=.2*latest_rootsize }
       size_confint_lower = (latest_rootsize-1.96*se)^2
       size_confint_higher = (latest_rootsize+1.96*se)^2
       
       batch_size = max(50,round(nrow(trials)/10))              # the number of simulations for the new batch is 10% of what's already been done, but at least 50
       if((nrow(trials)+batch_size)>nsims) batch_size = max(2,nsims-nrow(trials)) # max(2,...) is to avoid bugs so one may rarely get nsims+1 runs at the end, depending on nsims
       tar_NN = round(seq(latest_rootsize-se,latest_rootsize+se,length.out=batch_size)^2)
-      tar_NN = pmin(pmax(2,tar_NN),round(runif(length(tar_NN),capNN*0.5,capNN)))              # drawing new tar_NNs to try, applying limits : minimum N=4, maximum=capNN
+      tar_NN = pmin(pmax(4,tar_NN),round(runif(length(tar_NN),capNN*0.9,capNN)))              # drawing new tar_NNs to try, applying limits : minimum N=4, maximum=0.9 to 1 * capNN to keep contrasts
       } else {                                                 # if optimizer not launchable, keep the same estimates + some noise, keep target trials (N & optival)
               latest_logslope = latest_logslope+rnorm(1)
               latest_rootsize = latest_rootsize+rnorm(1)
@@ -123,10 +123,10 @@ adsasi_0d = function(simfun,tar_power=0.9,...,nsims=5000, verbose=FALSE, impNN=I
     # # # # # # # # # # # # # # # # # # 
     # Plotting
     # # # # # # # # # # # # # # # # # # 
-    if(savegraphs!=FALSE) { batch=batch+1 ; pngname = paste(sep="","adsasi",gsub(":","-",as.character(Sys.time()),fixed=TRUE)," iteration ",paste(rep(0,3-nchar(batch)),collapse=""),batch,".png") ; if(is.character(savegraphs)){pngname=gsub("adsasi",savegraphs,pngname)} ; png(pngname,width=400*2,height=400) } # opening a device to save graphs
+    if(savegraphs!=FALSE) { batch=batch+1 ; pngname = paste(sep="","adsasi ",gsub(":","-",as.character(Sys.time()),fixed=TRUE)," iteration ",paste(rep(0,3-nchar(batch)),collapse=""),batch,".png") ; if(is.character(savegraphs)){pngname=gsub("adsasi",savegraphs,pngname)} ; png(pngname,width=400*2,height=400) } # opening a device to save graphs
     #layout(mat = matrix(c(1,1,1,1,2,3),nrow=2), heights = c(1,1), widths = c(1,1,1), respect =TRUE)
-    par(mfrow=c(1,2),cex=1.35,cex.lab=1,cex.axis=1)   # light aesthetic setup, with silent backup per standard R usage
-    on.exit(par(par_bak)) # restoring on exit
+    par(mfrow=c(1,2),cex=1.35,cex.lab=1,cex.axis=1)           # light aesthetic setup, with silent backup per standard R usage
+    on.exit(par(par_bak))                                     # restoring on exit
     plot(
           trials[,1]^2                                        # sample sizes as ordinates, the abscissae are by default 1:nrow(trials) and that's what we want (to plot them in order)
          ,xlim=c(0,nsims*1.1)
@@ -136,7 +136,7 @@ adsasi_0d = function(simfun,tar_power=0.9,...,nsims=5000, verbose=FALSE, impNN=I
          ,col=paste(sep="",c(rgb(1,.5,0),rgb(0,.6,0.8)),"")[1+trials[,2]],pch=3,cex=.5+.1*(1-trials[,2]) # successes in blue, failures in orange ; so higher ordinates are bluer, lower are oranger
          )
 
-    points(nrow(trials)+1:length(tar_NN),tar_NN,col="#55555588",pch=1,cex=.8)   # drawing current batch on the graph, result unknown so in grey
+    points(nrow(trials)+1:length(tar_NN),tar_NN,col="#55555588",pch=1,cex=.8) # drawing current batch on the graph, result unknown so in grey
     plot(                                                                     # second graph (right panel)
           trials[,1]^2+rnorm(nrow(trials),0,.25)                              # sample size
          ,trials[,2] + (trials[,2]-.5)*2*-rexp(nrow(trials),20)               # success or failure, with some jittering to appreciate density
@@ -148,7 +148,7 @@ adsasi_0d = function(simfun,tar_power=0.9,...,nsims=5000, verbose=FALSE, impNN=I
     xx = seq(latest_rootsize^2*.75,latest_rootsize^2*1.33,length.out=1000)
     lines(xx,pnorm(qnorm(tar_power)+exp(latest_logslope)*(sqrt(xx)-latest_rootsize)))
 
-    if(savegraphs!=FALSE) dev.off()                                                  # closing device and saving image if graphs are to be saved
+    if(savegraphs!=FALSE) dev.off()                                           # closing device and saving image if graphs are to be saved
     }                                                                         # end of loop
   
   size_estimate = ceiling(size_estimate)

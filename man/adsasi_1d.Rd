@@ -32,7 +32,7 @@ adsasi_1d(
 
 \item{optiwin}{(numeric vector of size 2) Bounds of the region to be explored for values of \code{optivar}.}
 
-\item{optilog}{(boolean) Whether \code{optivar} is best explored and drawn in log scale (as in the case of a ratio) or linearly. If for example \code{optiwin} is c(0.1,10) for a ratio, graphs will be drawn with 1 as the middle value if \code{optilog} is \code{TRUE} and 5.05 is it is \code{FALSE}.}
+\item{optilog}{(boolean) Whether \code{optivar} is best explored and drawn in log scale (as in the case of a ratio) or linearly. If for example \code{optiwin=c(0.1,10)} for a ratio, graphs will be drawn with 1 as the middle value if \code{optilog=TRUE} and 5.05 if \code{optilog=FALSE}.}
 
 \item{optiround}{(boolean) Whether \code{optivar} needs to be rounded to the nearest integer to make sense for \code{simfun} (for example, if it is a number of centers in a cluster-randomized trial).}
 
@@ -42,7 +42,7 @@ adsasi_1d(
 
 \item{impNN}{(single number, or infinity) Sample size that is considered impossible (either computationnally, or logistically). The simulator will exit if, after 500+ simulations, it looks like the best value is above this. In practice, is mostly useful to avoid expensive computations in situations where \code{simfun} is not written well or is prohibitively long to compute for large sample sizes.}
 
-\item{capNN}{(single number, or infinity) Maximum sample size that will be simulated. Also mostly useful to avoid expensive computations.}
+\item{capNN}{(single number, or infinity) Maximum sample size that will be simulated. Also mostly useful to avoid expensive computations. Initiation will also be done between 10 and \code{capNN/2} patients, so absurdly high values will cause a slow start.}
 
 \item{initiation}{(boolean, or numeric matrix) Either a boolean indicating whether or not to keep the first 150 simulations for the relationship inference (those tend to be far from \code{tar_power}), or a matrix with simulation results from a previous run which the user wants enrich with more simulations (formatted exactly as produced by \code{adsasi_1d} with the same \code{opti*} arguments). See Value and Notes below for how to get this data from the output to be able to reuse it.}
 
